@@ -305,7 +305,7 @@ static status_e activate_normal( struct service *sp )
    }
 
 #ifdef IN_MULTICAST
-   if( SC_IPV4(scp) && IN_MULTICAST(tsin.sa_in.sin_addr.s_addr) ) {
+   if( SC_IPV4(scp) && IN_MULTICAST( ntohl(tsin.sa_in.sin_addr.s_addr) ) ) {
       struct ip_mreq mreq;
       mreq.imr_multiaddr.s_addr = tsin.sa_in.sin_addr.s_addr;
       mreq.imr_interface.s_addr = htonl(INADDR_ANY);
