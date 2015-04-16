@@ -20,6 +20,8 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include <ifaddrs.h>
+#include <net/if.h>
 #ifdef HAVE_MDNS
 #include "xmdns.h"
 #endif
@@ -306,12 +308,29 @@ static status_e activate_normal( struct service *sp )
 
 #ifdef IN_MULTICAST
    if( SC_IPV4(scp) && IN_MULTICAST( ntohl(tsin.sa_in.sin_addr.s_addr) ) ) {
+      struct ifaddrs *addrs, *addr;
       struct ip_mreq mreq;
-      mreq.imr_multiaddr.s_addr = tsin.sa_in.sin_addr.s_addr;
-      mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-      setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
-      if ( debug.on )
-         msg( LOG_DEBUG, func, "Adding multicast membership." );
+      
+      if (getifaddrs(&addrs) == 0) {
+         addr = addrs;
+
+         while (addr)
+         {
+            if (addr->ifa_addr && (addr->ifa_flags & IFF_MULTICAST))
+            {
+               mreq.imr_multiaddr.s_addr = tsin.sa_in.sin_addr.s_addr;
+               mreq.imr_interface.s_addr = ((struct sockaddr_in *)addr->ifa_addr)->sin_addr.s_addr;
+               setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+            }
+            addr = addr->ifa_next;
+         }
+         freeifaddrs(addrs);
+         if ( debug.on )
+               msg( LOG_DEBUG, func, "Adding multicast membership." );
+      }
+      else {
+         msg( LOG_ERR, func, "getifaddrs failed (%m). service = %s", sid );
+      }
    }
 #endif
 
